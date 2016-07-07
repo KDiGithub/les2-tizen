@@ -11,7 +11,8 @@
         <script src="lib/jquery-2.0.0.min.js"></script>	
         <script src="js/JQ.js"></script>
         <script src="lib/jquery.mobile-1.4.5.min.js" type="application/x-javascript" charset="utf-8"></script>	
-		<script src="js/jqm.js"></script>		
+		<script src="js/jqm.js"></script>	
+		<script src="js/rss.js"></script>
 		<script>		
 
 			window.addEventListener('tizenhwkey', function onTizenHwKey(e) {
@@ -92,8 +93,9 @@
 				<h1>Поиск</h1>
 			</div>
 			<div data-role="content" >	
-				<label for="search">Поиск</label>
-				<input type="search" name="search_form" id="search" value="" />
+				<input type="search" name="searchh" id="searchh" value="" OnChange="va=this.value"/>
+				<label for="searchh"><button onClick='searchData(va)'>Поиск</button></label>
+				<div id ="searchRes"></div>
 				<ul data-role="listview" data-inset="true" id="searchresult">					
 				</ul>
 			</div>
