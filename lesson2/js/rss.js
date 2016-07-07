@@ -1,95 +1,164 @@
+webdb = openDatabase('mydb', '1.0', 'Test DB', 2 * 1024 * 1024);
+webdb.transaction(function (tx){
+	tx.executeSql('CREATE TABLE IF NOT EXISTS RSS4 (id integer primary key autoincrement, title text, description text, url_img text)', [], null, null);
+});
+
+function getFeed(){
+	var FEED_URL = "http://www.3dnews.ru/news/rss/";
+	var width = screen.width;
+	
+	$(document).ready(function(){
+		$.ajax({
+			type: "GET",
+			url: FEED_URL,
+			dataType: "xml",
+			error: getStorage(function(res){
+				for (var field in res){
+					for(var fieldValue in (value = res[field]))
+						{
+							switch(fieldValue){
+							case 'title':
+								var title = value[fieldValue];
+								break;
+							case 'description':
+								var description = value[fieldValue];
+								break;
+							case 'url_img':
+								var url_img = value[fiedlValue];
+								break;
+							}
+						}
+					
+					$('#rssContent').append('<div class="feed">' +
+							'<div class="images"><image src='+ url_img +' style="width: 100vw" > </image></div>' +
+							'<div class="title" style="font-weight: bold; "> '+ title + '</div>' +
+							'<div class="description" style="font-size:12px"> '+ description + '</div></div>');
+				}
+			}),
+			success: xmlParser
+		});
+	});
+	
+	function xmlParser(xml){
+		clearStore();
+		
+		$(xml).find("item").each(function(){
+			var i=0;
+			var arr=[];
+			var url_img = $(this).find("enclosure").attr('url');
+			$('#rssContent').append('<div class="feed">' +
+					'<div class="images"><image src='+ url_img +' style="width: 100vw" > </image></div>' +
+					'<div class="title" style="font-weight: bold; "> '+ $(this).find("title").text() + '</div>' +
+					'<div class="description" style="font-size:12px"> '+ $(this).find("description").text() + '</div></div>');
+			
+			arr[i]= {url_img: $(this).find("enclosure").attr('url'), title: $(this).find("title").text(), description: $(this).find("description").text()};
+			setData(arr[i]);
+			
+			var temporary_array_title = "";
+			temporary_array_title =  arr[i].title;
+			var temporary_array_url_img= "";
+			temporary_array_url_img = arr[i].url_img;
+			var temporary_array_description = "";
+			temporary_array_description =  arr[i].description;
+	
+			webdb.transaction(function (tx) {  		
+				tx.executeSql('INSERT INTO RSS4 (title, description, url_img) VALUES (?,?,?)', [temporary_array_title, temporary_array_description, temporary_array_url_img], null, function(e){					
+					console.log('Error');
+				});
+			});
+			i++
+		});
+	}
+}
+
+var substring = "";
+function searchData(substring){
+	//substring=document.getElementsById("searchh").val();
+	
+	console.log(substring);
+	var result = [];
+	webdb.transaction(function(tx){
+			tx.executeSql("SELECT title FROM RSS4 WHERE title LIKE '%" + substring + "%'", [], function(tx, result){
+				var tab = [];
+				for(var j = 0; j <result.rows.length; j++)
+				{
+					$("#searchRes").append(j+ ") " + result.rows.item(j)['title'] +"<br>");
+					//alert(result.rows.item(j)['title']);
+					//alert(result.length);
+				}
+				
+			}, function(e){
+				console.log('Error of select');
+			});
+	});
+};
+
+//WebSQL
+
+function clearStore(){
+
+	webdb.transaction(function (tx) {
+		  tx.executeSql('DROP TABLE RSS4');
+		});
+	
+	webdb.transaction(function (tx){
+		tx.executeSql('CREATE TABLE IF NOT EXISTS RSS4 (id integer primary key autoincrement, title text, description text, url_img text)', [], null, null);
+	});
+}
+
+function prepareDatabase(ready, error) {
+	  return openDatabase('documents', '1.0', 'Offline document storage', 5*1024*1024, function (db) {
+	    db.changeVersion('', '1.0', function (t) {
+	      t.executeSql('CREATE TABLE docids (id, name)');
+	    }, error);
+	  });
+	}
+
+	function showDocCount(db, span) {
+	  db.readTransaction(function (t) {
+	    t.executeSql('SELECT COUNT(*) AS c FROM docids', [], function (t, r) {
+	      span.textContent = r.rows[0].c;
+	    }, function (t, e) {
+	      // couldn't read database
+	      span.textContent = '(unknown: ' + e.message + ')';
+	    });
+	  });
+	}
+
+	prepareDatabase(function(db) {
+	  // got database
+	  var span = document.getElementById('doc-count');
+	  showDocCount(db, span);
+	}, function (e) {
+	  // error getting database
+	  alert(e.message);
+	});
+
+//IndexedDB	
+	
 var indexedDB 	  = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB,
 IDBTransaction  = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction,
 baseName 	  = "filesBase",
 storeName 	  = "filesStore";
-db = openDatabase(baseName, "0.1", "Articles.", 200000);
 
 
-
-function getFeed()
-{
-	var FEED_URL ="http://www.3dnews.ru/news/rss/";
-	$(document).ready(function(){
-		$.ajax({
-			type:"GET",
-			url: FEED_URL,
-			dataType: "xml",
-			error: getStorage(function(res){
-				
-				for(var field in res)
-				{
-					for(var fieldValue in (value=res[field]))
-					{
-						switch(fieldValue)
-						{
-							case 'title':
-								var title=value[fieldValue];
-							break;
-							case 'description':
-								var description=value[fieldValue];
-							break;
-							case 'url_img':
-								var url_img=value[fieldValue];
-							break;
-						}
-					}
-					$('#rssContent').append('<div class="feed">'+
-							'<div class="images"> <image src='+ url_img +' style="width: 100vw"> </image> </div>'+
-							'<div class="title" style="font-weight:bold"> '+ title +': </div>'+
-							'<div class="description" style="font-size:12pt" > '+ description +'</div><br></div>');
-					
-				}
-			}),
-			success: xmlParser
-		})
-	});
-	
-	function xmlParser(xml)
-	{
-		var i=0, arr=[];
-		clearStorage();
-		
-		$(xml).find("item").each(function(){
-			var url_img = $(this).find("enclosure").attr('url');
-			$('#rssContent').append('<div class="feed">'+
-					'<div class="images"> <image src='+ url_img +' style="width: 100vw"> </image> </div>'+
-					'<div class="title" style="font-weight:bold"> '+ $(this).find("title").text() +': </div>'+
-					'<div class="description" style="font-size:12pt" > '+ $(this).find("description").text() +'</div><br></div>');
-
-			arr[i]={title: $(this).find("title").text(), description: $(this).find("description").text(), image:$(this).find("enclosure").attr('url')};  
-			setData(arr[i].title, arr[i].description, arr[i].image);
-			i++;
-		
-		});
-		
-	}
-	
-}
-
-
-
-
-
-function logerr(err){
+function logerr(err){ 
 	console.log(err);
 }
 
-function connectDB(f){
-	/*var request = indexedDB.open(baseName, 1);
+function connectDB(f){ 
+	var request = indexedDB.open(baseName, 1); 
 	request.onerror = logerr;
 	request.onsuccess = function(){
 		f(request.result);
 	}
-	request.onupgradeneeded = function(e){
+	request.onupgradeneeded = function(e){ 
 		var objectStore = e.currentTarget.result.createObjectStore(storeName, { autoIncrement: true });
 		connectDB(f);
-	}*/
-	
-	db = openDatabase(baseName, "0.1", "Articles.", 200000);
-	if(!db){alert("Failed to connect to database.");}
+	}
 }
 
-function getData(key, f){
+function getData(key, f){ 
 	connectDB(function(db){
 		var request = db.transaction([storeName], "readonly").objectStore(storeName).get(key);
 		request.onerror = logerr;
@@ -99,8 +168,8 @@ function getData(key, f){
 	});
 }
 
-function getStorage(f){
-	/*connectDB(function(db){
+function getStorage(f){ 
+	connectDB(function(db){
 		var rows = [],
 			store = db.transaction([storeName], "readonly").objectStore(storeName);
 
@@ -119,24 +188,10 @@ function getStorage(f){
 					f(rows);
 				}
 			};
-	});*/
-	
-	db.transaction(function (tx) {
-		   tx.executeSql('SELECT * FROM '+storeName, [], function (tx,res) {
-			  
-			   while (tx.next()) {
-				   
-				   var title = res.getString(3);
-				   var description = res.getString(4);
-				   var image = res.getString(5);
-				 }
-			
-		   });
-		});
-
+	});
 }
 
-/*function setData(obj){
+function setData(obj){ 
 	connectDB(function(db){
 		var request = db.transaction([storeName], "readwrite").objectStore(storeName).add(obj);
 		request.onerror = logerr;
@@ -144,20 +199,9 @@ function getStorage(f){
 			return request.result;
 		}
 	});
-}*/
-
-function setData(title_, description_, image_){
-	
-	db.transaction(function(tx){
-		tx.executeSql('CREATE TABLE IF NOT EXISTS ' + storeName + ' (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, image TEXT)',[], null,null);
-		
-		tx.executeSql('INSERT INTO '+ storeName +'(title, description, image) VALUES (?,?,?)', [title_,description_,image_],null,function(e){
-			console.log('Error');
-		});
-	});
 }
 
-function delData(key){
+function delData(key){ 
 	connectDB(function(db){
 		var request = db.transaction([storeName], "readwrite").objectStore(storeName).delete(key);
 		request.onerror = logerr;
@@ -167,18 +211,15 @@ function delData(key){
 	});
 }
 
-function clearStorage(){
-	
-	/*connectDB(function(db){
+function clearStorage(){ 
+	connectDB(function(db){
 		var request = db.transaction([storeName], "readwrite").objectStore(storeName).clear();;
 		request.onerror = logerr;
 		request.onsuccess = function(){
 			console.log("Clear");
 		}
-	});*/
-
-	db.transaction(function (tx) {
-		  tx.executeSql('DROP TABLE '+storeName);
-		});
+	});
 }
+
+
 
